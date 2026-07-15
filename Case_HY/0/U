@@ -1,0 +1,79 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  12
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform (-15.56 0 0);
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           $internalField;
+    }
+
+    outlet
+    {
+        type            zeroGradient;
+    }
+
+    road
+    {
+        type            fixedValue;
+        value           $internalField;
+    }
+
+    // Patch di simmetria
+    "(symmetry|symmetry_side|symmetry_up)"
+    {
+        type            symmetry;
+    }
+
+    // Ruote Anteriori
+    "wheel_front_.*"
+    {
+        type            rotatingWallVelocity;
+        origin          (1.530290041 0.720400982 0.196911951);
+        axis            (0 1 0);
+        omega           79.020089;
+        value           uniform (0 0 0);
+    }
+
+    // Ruote Posteriori
+    "wheel_rear_.*"
+    {
+        type            rotatingWallVelocity;
+        origin          (0.000038 0.712661827 0.199599865);
+        axis            (0 1 0);
+        omega           79.020089;
+        value           uniform (0 0 0);
+    }
+
+    // Porous media (radiatore) - le pareti esterne del mezzo poroso
+    porous_media_walls
+    {
+        type            noSlip;
+    }
+
+    // Tutte le restanti patch fisiche dell'auto (No-Slip)
+    "(monocoque|underbody|driver|seat|main_hoop|air_intake|front_suspensions|rear_suspensions|electric_motor|chassis_wing|sidepod|radiator_frame|front_wing_endplates|front_wing_support|front_wing_diveplanes|front_wing_flap_2_3|front_wing_flap_1|front_wing_mainplane|front_wing_strakes|undertray_venturi|venturi_flap_1|venturi_flap_2|venturi_plates|rear_wing_endplate|rear_wing_mainplane|rear_wing_upper_flaps|rear_wing_flap_2|rear_wing_flap_1|rear_wing_support)"
+    {
+        type            noSlip;
+    }
+}
+
+// ************************************************************************* //

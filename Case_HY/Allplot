@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""
+Allplot — mettilo nella root del caso OpenFOAM e lancia con:
+    ./Allplot
+"""
+
+import sys, numpy as np, matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from pathlib import Path
+
+# ── Trova il file ─────────────────────────────────────────────────────────────
+def find_force_file():
+    matches = list(Path(".").rglob("force.dat"))
+    for m in matches:
+        if "forces_total" in str(m):
+            return str(m)
+    for m in matches:
+        if "postProcessing" in str(m):
+            return str(m)
+    return str(matches[0]) if matches else None
+
+FILE = find_force_file()
+if not FILE:
+    sys.exit("❌  force_0.dat non trovato. Sei nella cartella del caso OpenFOAM?")
+print(f"✅  {FILE}")
+
+# ── Legge il file ─────────────────────────────────────────────────────────────
+def read_data():
+    t, drag, down = [], [], []
+    with open(FILE) as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+            p = line.split()
+            if len(p) < 4:
+                continue
+            try:
+                t.append(float(p[0]))
+                drag.append(float(p[1]))   # total_x → Drag
+                down.append(float(p[3]))   # total_z → Downforce
+            except ValueError:
+                continue
+    return np.array(t), np.array(drag), np.array(down)
+
+# ── Stile ─────────────────────────────────────────────────────────────────────
+BG, AX_BG, GRID = "#0f1117", "#161b22", "#21262d"
+TEXT, C_DRAG, C_DOWN = "#e6edf3", "#f78166", "#79c0ff"
+
+plt.rcParams.update({
+    "figure.facecolor": BG,   "axes.facecolor":  AX_BG,
+    "axes.edgecolor":   GRID, "axes.labelcolor": TEXT,
+    "xtick.color":      TEXT, "ytick.color":     TEXT,
+    "text.color":       TEXT, "grid.color":      GRID,
+    "font.family":      "monospace", "font.size": 10,
+})
+
+fig, (ax_d, ax_z) = plt.subplots(2, 1, figsize=(13, 7), sharex=True,
+                                  gridspec_kw={"hspace": 0.08,
+                                               "left": 0.09, "right": 0.97,
+                                               "top": 0.88, "bottom": 0.09})
+fig.canvas.manager.set_window_title("OpenFOAM Force Monitor")
+
+for ax in (ax_d, ax_z):
+    ax.minorticks_on()
+    ax.grid(True, which="major", linewidth=0.7, alpha=0.8)
+    ax.grid(True, which="minor", linewidth=0.3, alpha=0.4)
+    ax.axhline(0, color=TEXT, lw=0.5, alpha=0.2, ls="--")
+    ax.tick_params(labelsize=9)
+
+ax_z.set_xlabel("Iterations", fontsize=10, labelpad=6)
+ax_d.set_ylabel("Drag  —  total_x  [N]", fontsize=10, color=C_DRAG)
+ax_z.set_ylabel("Downforce  —  total_z  [N]", fontsize=10, color=C_DOWN)
+ax_d.tick_params(axis="y", colors=C_DRAG)
+ax_z.tick_params(axis="y", colors=C_DOWN)
+
+line_d, = ax_d.plot([], [], color=C_DRAG, lw=1.6)
+line_z, = ax_z.plot([], [], color=C_DOWN, lw=1.6)
+
+title  = fig.text(0.5, 0.955, "OpenFOAM  Force Monitor",
+                  ha="center", fontsize=13, fontweight="bold", color=TEXT)
+info   = fig.text(0.5, 0.915, "—", ha="center", fontsize=9, color="#8b949e")
+source = fig.text(0.5, 0.895, FILE, ha="center", fontsize=7.5, color="#484f58")
+
+# ── Animazione ────────────────────────────────────────────────────────────────
+_prev_n = [0]
+
+def ylim_with_margin(arr, margin=0.10):
+    lo, hi = arr.min(), arr.max()
+    pad = (hi - lo) * margin or abs(lo) * margin or 1.0
+    return lo - pad, hi + pad
+
+def update(_):
+    t, drag, down = read_data()
+    n = len(t)
+    if n == 0:
+        return line_d, line_z
+
+    line_d.set_data(t, drag)
+    line_z.set_data(t, down)
+
+    ax_d.set_xlim(t[0], t[-1] if t[-1] > t[0] else t[0] + 1)
+    ax_d.set_ylim(*ylim_with_margin(drag))
+    ax_z.set_ylim(*ylim_with_margin(down))
+
+    if n != _prev_n[0]:
+        _prev_n[0] = n
+        info.set_text(
+            f"iter {int(t[-1])}  ·  "
+            f"Drag = {drag[-1]:+.2f} N  ·  "
+            f"Downforce = {down[-1]:+.2f} N  ·  "
+            f"{n} campioni"
+        )
+    return line_d, line_z
+
+ani = animation.FuncAnimation(fig, update, interval=1000,
+                               blit=False, cache_frame_data=False)
+plt.show()

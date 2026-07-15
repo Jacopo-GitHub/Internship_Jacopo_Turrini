@@ -1,0 +1,56 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  12
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      binary;
+    class       volScalarField;
+    location    "0";
+    object      nut;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 2 -1 0 0 0 0];
+internalField   uniform 0;
+
+boundaryField
+{
+    "(inlet|outlet)"
+    {
+        type            calculated;
+        value           uniform 0;
+    }
+
+    "(symmetry|symmetry_side|symmetry_up)"
+    {
+        type            symmetry;
+    }
+
+    road
+    {
+        type            nutkRoughWallFunction;
+        Ks              uniform 0.0005;
+        Cs              uniform 0.5;
+        value           uniform 0;
+    }
+
+    // Porous media (radiatore) - Spalding sulle pareti esterne
+    porous_media_walls
+    {
+        type            nutUSpaldingWallFunction;
+        value           uniform 0;
+    }
+
+    // Tutte le superfici della vettura con funzione di parete Spalding
+    "(monocoque|seat|main_hoop|driver|underbody|air_intake|front_suspensions|rear_suspensions|electric_motor|chassis_wing|sidepod|radiator_frame|front_wing_endplates|front_wing_support|front_wing_diveplanes|front_wing_flap_2_3|front_wing_flap_1|front_wing_mainplane|front_wing_strakes|undertray_venturi|venturi_flap_1|venturi_flap_2|venturi_plates|rear_wing_endplate|rear_wing_mainplane|rear_wing_upper_flaps|rear_wing_flap_2|rear_wing_flap_1|rear_wing_support|wheel_front_patch|wheel_front_tyre|wheel_front_hub|wheel_front_rim|wheel_rear_patch|wheel_rear_tyre|wheel_rear_hub|wheel_rear_rim)"
+    {
+        type            nutUSpaldingWallFunction;
+        value           uniform 0;
+    }
+}
+
+// ************************************************************************* //
