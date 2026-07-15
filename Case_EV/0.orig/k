@@ -1,0 +1,62 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  11
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      binary;
+    class       volScalarField;
+    location    "0";
+    object      k;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 2 -2 0 0 0 0];
+
+internalField   uniform 2; // Valore basato su intensità turbolenta ~5%
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           $internalField;
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      $internalField;
+        value           $internalField;
+    }
+    vent_out_diffuser
+    {
+        type            inletOutlet;
+        inletValue      $internalField;
+        value           $internalField;
+    }
+
+    // Raggruppamento di tutte le patch di simmetria
+    "(symmetry|symmetry_side|symmetry_up)"
+    {
+        type            symmetry;
+    }
+
+    // Patch della strada
+    road
+    {
+        type            kqRWallFunction;
+        value           $internalField;
+    }
+
+    // Tutte le superfici del veicolo (Carrozzeria, Ali, Sospensioni, Motore, etc.)
+"(monocoque|seat|main_hoop|headrest|driver|underbody|air_tank|front_suspension|rear_suspension|electric_motor_.*|wheel_.*|chassis_wing|front_supports|front_wing_.*|undertray_.*|rear_support|rear_wing_.*|vent_diffuser|diffuser_duct)"    {
+        type            kqRWallFunction;
+        value           $internalField;
+    }
+}
+
+// ************************************************************************* //

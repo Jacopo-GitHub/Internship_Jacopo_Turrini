@@ -1,0 +1,57 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  11
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      binary;
+    class       volScalarField;
+    location    "0";
+    object      omega;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 -1 0 0 0 0];
+internalField   uniform 1000; 
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           uniform 10000; 
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 10000; 
+        value           $internalField;
+    }
+    vent_out_diffuser
+    {
+        type            inletOutlet;
+        inletValue      uniform 10000; 
+        value           $internalField;
+    }
+
+    "(symmetry|symmetry_side|symmetry_up)"
+    {
+        type            symmetry; 
+    }
+
+    road
+    {
+        type            omegaWallFunction;
+        value           uniform 6000; 
+    }
+
+    // Tutte le superfici della vettura e condotti
+"(monocoque|seat|main_hoop|headrest|driver|underbody|air_tank|front_suspension|rear_suspension|electric_motor_.*|wheel_.*|chassis_wing|front_supports|front_wing_.*|undertray_.*|rear_support|rear_wing_.*|vent_diffuser|diffuser_duct)"    {
+        type            omegaWallFunction;
+        value           uniform 6000; 
+    }
+}

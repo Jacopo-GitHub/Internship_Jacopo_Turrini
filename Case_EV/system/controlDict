@@ -1,0 +1,215 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  11
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     simpleFoam;
+
+solver          incompressibleFluid;
+
+startFrom       latestTime;
+
+// startTime    0; // This line is now ignored, but usually kept at 0
+
+stopAt          endTime;
+
+endTime         2000;
+
+deltaT          1;
+
+writeControl    timeStep;
+
+writeInterval   250;
+
+purgeWrite      3;
+
+writeFormat     binary;
+
+writePrecision  6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable true;
+
+functions
+{
+    // --- FORZE TOTALI (Tutta la vettura) ---
+    forces_total
+    {
+        type            forces;
+        libs            ("libforces.so");
+        // Include tutto tranne inlet, outlet, road e symmetry (symmetry, symmetry_side, symmetry_up)
+        patches         (
+            "monocoque"
+            "seat"
+            "main_hoop"
+            "headrest"
+            "driver"
+            "underbody"
+            "chassis_wing"
+            "front_supports"
+            "diffuser_duct"
+            ".*_suspension"
+            "electric_motor_.*"
+            "wheel_.*"
+            "front_wing_.*"
+            "undertray_.*"
+            "rear_wing_.*"
+            "vent_.*"
+        );
+        rho             rhoInf;
+        rhoInf          1.225;
+        CofR            (0.747 0.005 0.257); // Centro di rotazione
+        log             true;
+        writeControl    timeStep;
+        writeInterval   5;
+    }
+    // --- ALA ANTERIORE ---
+    forces_FW
+    {
+        type            forces;
+        libs            ("libforces.so");
+        patches         ("front_wing_.*");
+        rho             rhoInf;
+        rhoInf          1.225;
+        CofR            (0.747 0.005 0.257);
+        log             true;
+        writeControl    timeStep;
+        writeInterval   5;
+    }
+
+    // --- ALA POSTERIORE ---
+    forces_RW
+    {
+        type            forces;
+        libs            ("libforces.so");
+        patches         ("rear_wing_.*");
+        rho             rhoInf;
+        rhoInf          1.225;
+        CofR            (0.747 0.005 0.257);
+        log             true;
+        writeControl    timeStep;
+        writeInterval   5;
+    }
+
+    // --- FONDO E DIFFUSORE ---
+    forces_undertray
+    {
+        type            forces;
+        libs            ("libforces.so");
+        patches         ("undertray_.*" "vent_.*" "diffuser_.*");
+        rho             rhoInf;
+        rhoInf          1.225;
+        CofR            (0.747 0.005 0.257);
+        log             true;
+        writeControl    timeStep;
+        writeInterval   5;
+    }
+
+      // Genera il file chiamato "cp"
+    staticCoefficient
+    {
+        type            pressure;
+        libs            (fieldFunctionObjects);
+        mode            staticCoeff;
+        p               p;
+        U               U;
+        pInf            0;
+        pRef            0;
+        rho             rhoInf;
+        rhoInf          1;
+        UInf            (-15.56 0 0);
+        calcCoeff       yes;
+        calcTotal       no;
+        hydroStaticMode none;
+        result          cp;  // Forza il nome del file in uscita a "cp"
+        executeControl  writeTime; // Calcola solo quando OpenFOAM salva
+        writeControl    writeTime; // Scrive solo quando OpenFOAM salva (ogni 250)
+    }
+          
+    // Genera il file chiamato "ptot"
+    totalPressurecoefficient
+    {
+        type            pressure;
+        libs            ("libfieldFunctionObjects.so");
+        mode            total;
+        pRef            0;
+        pInf            0;
+        UInf            (-15.56 0 0);
+        p               p;
+        U               U;
+        rho             rhoInf;
+        rhoInf          1.225;
+        calcCoeff       no;
+        calcTotal       yes;
+        result          ptot; // Forza il nome del file in uscita a "ptot"
+        executeControl  writeTime; // Calcola solo quando OpenFOAM salva
+        writeControl    writeTime; // Scrive solo quando OpenFOAM salva (ogni 250)
+    }
+
+
+    // Calcolo Vorticità
+    vorticity
+    {
+        type            vorticity;
+        libs            ("libfieldFunctionObjects.so");
+        executeControl  writeTime;
+        writeControl    writeTime;
+    }
+    
+    Coeffs
+    { 
+        type            forceCoeffs;
+        libs            ("libforces.so");
+        writeControl    timeStep;
+        writeInterval   5;
+
+               patches         (
+            "monocoque"
+            "seat"
+            "main_hoop"
+            "headrest"
+            "driver"
+            "underbody"
+            "chassis_wing"
+            "front_supports"
+            "diffuser_duct"
+            ".*_suspension"
+            "electric_motor_.*"
+            "wheel_.*"
+            "front_wing_.*"
+            "undertray_.*"
+            "rear_wing_.*"
+            "vent_.*"
+        );
+        rho             rhoInf;
+        rhoInf          1.225;
+        
+        // Assicurati che magUInf sia positivo
+        magUInf         15.56;
+        
+        // Controlla la coerenza con la direzione del tuo ingresso aria (U)
+        // Se l'aria soffia verso -X 
+        dragDir         (-1 0 0);
+        liftDir         (0 0 1);
+        CofR            (0.747 0.005 0.257);
+        pitchAxis       (0 1 0);
+        lRef            1.4;
+        Aref            1.1;
+    }
+
+}

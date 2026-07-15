@@ -1,0 +1,42 @@
+#!/bin/sh
+cd "${0%/*}" || exit 1
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions
+
+# 1. PULIZIA CARTELLE E LOG
+echo "Pulizia..."
+rm -rf processor*
+rm -f log.*
+
+# 2. COPIA 0.orig → 0
+echo "Ripristino campi iniziali da 0.orig..."
+restore0Dir
+
+# 3. RIMOZIONE CAMPI DI POST-PROCESSING DA 0/
+# (vorticity, cp, ptot sono risultati di run precedenti, non condizioni iniziali)
+# Vanno rimossi DOPO restore0Dir, altrimenti restore li ricopia da 0.orig/
+echo "Rimozione campi di post-processing stantii da 0/..."
+rm -rf 0/vorticity 0/cp 0/ptot 0/Q 0/lambda2 0/Cp 0/pTotal
+
+# 4. DECOMPOSIZIONE mesh + campi (ora 0/ contiene solo U, p, k, omega, nut)
+echo "Scomposizione mesh e campi iniziali..."
+decomposePar -force > log.decomposePar 2>&1
+
+# 5. OTTIMIZZAZIONE MESH IN PARALLELO
+echo "renumberMesh..."
+mpirun --mca btl self,vader -np 6 renumberMesh -overwrite -parallel > log.renumberMesh 2>&1
+
+# 6. INIZIALIZZAZIONE POTENZIALE
+echo "potentialFoam..."
+mpirun --mca btl self,vader -np 6 potentialFoam -writePhi -parallel > log.potentialFoam 2>&1
+
+# 7. SIMULAZIONE
+echo "simpleFoam..."
+mpirun --mca btl self,vader -np 6 simpleFoam -parallel 2>&1 | tee log.simpleFoam
+
+# 8. RICOSTRUZIONE
+echo "reconstructPar..."
+reconstructPar -latestTime > log.reconstructPar 2>&1
+
+# 9. POST-PROCESSING
+echo "Post-processing..."
+simpleFoam -postProcess -latestTime
